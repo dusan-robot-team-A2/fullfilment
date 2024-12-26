@@ -6,6 +6,7 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point
 from fullfilment_interfaces.action import JobAction
 from std_srvs.srv import SetBool
+import serial
 
 import random, time
 
@@ -40,15 +41,30 @@ class SimplePublisher(Node):
     
     def conveyor_callback(self, request, response):
         status = request.data
-        if status:
-            self.get_logger().info(f'Activate Conveyor Belt')
-            response.message="Activate Conveyor Belt"
-        else:
-            self.get_logger().info(f'Deactivate Conveyor Belt')
-            response.message="Deactivate Conveyor Belt"
+        try:
+            py_serial = serial.Serial(
+                    port='/dev/ttyACM0',
+                    baudrate=115200,
+                )
+            if status:
+                self.get_logger().info(f'Activate Conveyor Belt')
+                command = 10000
+                py_serial.write(command.encode())
+                time.sleep(0.1)
+                response.message="Activate Conveyor Belt"
+            else:
+                self.get_logger().info(f'Deactivate Conveyor Belt')
+                command = 1
+                py_serial.write(command.encode())
+                response.message="Deactivate Conveyor Belt"
+            
+            response.success = True
+            return response   
+        except:
+            response.message="USB is not conect"
         
-        response.success = True
-        return response   
+            response.success = True
+            return response   
 
     async def execute_callback(self, goal_handle):
         self.get_logger().info(f"Goal Received: red_num={goal_handle.request.red_num}, "

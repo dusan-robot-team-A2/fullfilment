@@ -15,8 +15,8 @@ class ConveyorNode(Node):
             '/conveyor_move', 
             self.handle_command
             )        # 상태 변수
-        self.current_status = "Idle"  # 현재 상태
-        self.previous_status = None  # 이전 상태 (상태 변화 감지용)        # 타이머 설정
+        self.current_status = 0  # 현재 상태
+        self.previous_status = 0  # 이전 상태 (상태 변화 감지용)        # 타이머 설정
         self.timer = self.create_timer(0.1, self.publish_status)  # 상태 발행 주기
         self.usb_check_timer = self.create_timer(1.0, self.check_usb_connection)  # USB 연결 상태 확인 주기        # 시리얼 포트 설정 (아두이노 연결)
         self.serial_port = self.initialize_serial('/dev/ttyACM0', 115200)    
@@ -51,9 +51,9 @@ class ConveyorNode(Node):
             if self.serial_port is None:
                 raise serial.SerialException("Serial port is not connected.")            
             command = "10000" if request.data else "1"
+            self.current_status = 1 if request.data else 0            # 서비스 응답
             self.serial_port.write(f"{command}\n".encode())  # 명령 전송
             self.get_logger().info(f"Received command: {command}")            # 상태 업데이트
-            self.current_status = 1 if request.data else 0            # 서비스 응답
             response.success = True
             response.message = f"Conveyor command '{command}' executed."
             return response

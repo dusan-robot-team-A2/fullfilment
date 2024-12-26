@@ -25,8 +25,8 @@ class main_node(Node):
             'job_command',
             self.execute_callback
         )
-        self.conveyor_service = self.create_service(Int16, '/conveyor_control', self.conveyor_callback)
-        self.order_to_conveyor = self.create_client(Int16, '/conveyor_move')
+        self.conveyor_service = self.create_service(SetBool, '/conveyor_control', self.conveyor_callback)
+        self.order_to_conveyor = self.create_client(SetBool, '/conveyor_move')
         self.conveyor_mode = 0
         self.cap = cv2.VideoCapture(2)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)

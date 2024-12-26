@@ -11,7 +11,7 @@ class ConveyorNode(Node):
         super().__init__('conveyor_node')        # ROS 2 Publisher 설정 (상태 발행 및 알림)
         self.status_publisher = self.create_publisher(Int16, 'conveyor_status', 10)
         self.command_service = self.create_service(
-            Int16, 
+            SetBool, 
             '/conveyor_move', 
             self.handle_command
             )        # 상태 변수

@@ -1,0 +1,11 @@
+# Goal definition
+int32 red_num
+int32 blue_num
+
+---
+# Result definition
+bool success
+
+---
+# Feedback definition
+bool go

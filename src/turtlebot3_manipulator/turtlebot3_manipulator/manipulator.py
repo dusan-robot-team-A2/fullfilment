@@ -12,6 +12,8 @@ from visual_kinematics.RobotSerial import *
 from std_msgs.msg import Header
 import time
 import cv2
+from .imagesaver import ImageSaver
+from random import randint
 
 class manipulator(Node):
     def __init__(self):
@@ -22,6 +24,7 @@ class manipulator(Node):
         self.job_server = ActionServer(self, MoveBoxes, 'job_command2amr', self.moveboxes_callback)
         self. basket_service = self.create_service(MoveBasket, 'move_basket', self.basket_callback)
 
+        self.image_saver = ImageSaver()
         self.label_dic = {0: "red", 1: "blue", 2: "purple"}
         self.move_manipulator(100, 0, 0)
 
@@ -36,22 +39,32 @@ class manipulator(Node):
             return response
 
     def image_callback(self, img):
-        model = YOLO("Yolov8.pt")
         np_arr = np.frombuffer(img.data, np.uint8)
         image_np = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode to color image
-        result = model.track(image_np, persist=True)[0]
-        self.data = result.boxes
+        self.image = image_np
+
+    def save_image(self, cnt):
+        for i in range(cnt):
+            self.move_manipulator(randint(50, 100), randint(-50, 50), randint(50, 100))
+            num = self.image_saver.save_imgae(self.image, i + num)
+
+    def detect_object(self, img):
+        model = YOLO("Yolov8.pt")
+        result = model.track(img, persist=True)[0]
+        data = result.boxes
+        return data
 
     def get_object_pos(self):
+        data = self.detect_object(self.image)
         x_center = 640
         y_center = 360
         red_lst = []
         blue_lst = []
         # Get the boxes and track IDs
         class_ids = self.data.cls
-        boxes = self.data.xywh.cpu()
-        track_ids = self.data.id.int().cpu().tolist()
-        confidences = self.data.conf.cpu().tolist()
+        boxes = data.xywh.cpu()
+        track_ids = data.id.int().cpu().tolist()
+        confidences = data.conf.cpu().tolist()
         # Plot the tracks
         for box, class_id, confidence in zip(boxes, class_ids, confidences):
             if confidence < 0.5:

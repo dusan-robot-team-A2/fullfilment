@@ -1,5 +1,5 @@
 import rclpy
-from rclpy import Node
+from rclpy.node import Node
 from rclpy.action import ActionClient, ActionServer
 from control_msgs.action import GripperCommand
 from ultralytics import YOLO
@@ -11,16 +11,16 @@ from fullfilment_interfaces.srv import MoveBasket
 from visual_kinematics.RobotSerial import *
 from std_msgs.msg import Header
 import time
+import cv2
 
 class manipulator(Node):
     def __init__(self):
         super().__init__("manipulator")
         self.gripper_action_client = ActionClient(self, GripperCommand, 'gripper_controller/gripper_cmd')
         self.joint_pub = self.create_publisher(JointTrajectory, '/arm_controller/joint_trajectory', 10)
-        self.get_image = self.create_subscription(CompressedImage, '/camera/raw/compressedimage', 10, self.image_callback)
+        self.get_image = self.create_subscription(CompressedImage, 'rgb_image/compressed_image', self.image_callback, 10)
         self.job_server = ActionServer(self, MoveBoxes, 'job_command2amr', self.moveboxes_callback)
-        self. basket_service = self.create_service(MoveBasket, 'move_basket', 10, self.basket_callback)
-        self.conveyor_pub = self.create_publisher()
+        self. basket_service = self.create_service(MoveBasket, 'move_basket', self.basket_callback)
 
         self.label_dic = {0: "red", 1: "blue", 2: "purple"}
         self.move_manipulator(100, 0, 0)
@@ -37,7 +37,9 @@ class manipulator(Node):
 
     def image_callback(self, img):
         model = YOLO("Yolov8.pt")
-        result = model.track(img, persist=True)[0]
+        np_arr = np.frombuffer(img.data, np.uint8)
+        image_np = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode to color image
+        result = model.track(image_np, persist=True)[0]
         self.data = result.boxes
 
     def get_object_pos(self):

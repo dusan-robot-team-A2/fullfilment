@@ -26,8 +26,18 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-rosidl_generate_interfaces(${PROJECT_NAME}
+set (action_files
   "action/JobAction.action"
+  "action/MoveBoxes.action"
+)
+
+set(srv_files
+  "srv/MoveBasket.srv"
+)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+${action_files}
+${srv_files}
   DEPENDENCIES builtin_interfaces
 )
 ament_export_dependencies(rosidl_default_runtime)

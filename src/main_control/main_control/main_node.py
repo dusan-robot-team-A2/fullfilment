@@ -4,7 +4,7 @@ from rclpy.action import ActionServer, ActionClient
 from std_msgs.msg import Int16
 from sensor_msgs.msg import CompressedImage
 from geometry_msgs.msg import Point
-from fullfilment_interfaces.action import JobAction
+from fullfilment_interfaces.action import JobAction, MoveBoxes
 from std_srvs.srv import SetBool
 import cv2
 
@@ -26,7 +26,7 @@ class main_node(Node):
 
         self.job_action_client = ActionClient(
             self,
-            JobAction,
+            MoveBoxes,
             'job_command2amr'
         )
 
@@ -68,13 +68,16 @@ class main_node(Node):
     
     def send_job(self, red_num, blue_num, goal_num):
         self.get_logger().info(f"Red: {red_num}, Blue: {blue_num}, Goal: {goal_num}")
-        goal_msg = JobAction.Goal()
-        goal_msg.red_num, goal_msg.blue_num, goal_msg.goal_num = red_num, blue_num, goal_num
+        goal_msg = MoveBoxes.Goal()
+        goal_msg.red_num, goal_msg.blue_num, self.goal_num = red_num, blue_num, goal_num
 
-        # 액션을 비동기적으로 호출하고 Future를 반환
-        future = self.job_action_client.send_goal_async(goal_msg)
+        # 액션을 동기적으로 호출하고 Future를 반환
+        future = self.job_action_client.send_goal(goal_msg, feedbackcallback=self.feedback_callback)
         future.add_done_callback(self.goal_response_callback)
         return future
+    
+    def feedback_callback(self, feedback_msg):
+        self.move_conveyor()
 
     def goal_response_callback(self, future):
         goal_handle = future.result()

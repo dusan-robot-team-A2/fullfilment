@@ -41,7 +41,7 @@ set(srv_files
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${action_files}
   ${srv_files}
-  DEPENDENCIES builtin_interfaces
+  DEPENDENCIES builtin_interfaces geometry_msgs
 )
 ament_export_dependencies(rosidl_default_runtime)
 ament_package()

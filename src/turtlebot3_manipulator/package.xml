@@ -18,6 +18,7 @@
   <depend>std_msgs</depend>
   <depend>time</depend>
   <depend>cv2</depend>
+  <depend>imagesaver</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

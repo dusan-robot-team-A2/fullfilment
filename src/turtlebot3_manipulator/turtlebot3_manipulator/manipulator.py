@@ -13,6 +13,7 @@ from std_msgs.msg import Header
 import time
 import cv2
 from .imagesaver import ImageSaver
+from .camera_undistortion import camera_undistortion
 from random import randint
 
 class manipulator(Node):
@@ -25,6 +26,7 @@ class manipulator(Node):
         self. basket_service = self.create_service(MoveBasket, 'move_basket', self.basket_callback)
 
         self.image_saver = ImageSaver()
+        self.cam_setting = camera_undistortion()
         self.label_dic = {0: "red", 1: "blue", 2: "purple"}
         self.move_manipulator(100, 0, 0)
 
@@ -41,7 +43,9 @@ class manipulator(Node):
     def image_callback(self, img):
         np_arr = np.frombuffer(img.data, np.uint8)
         image_np = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode to color image
-        self.image = image_np
+        
+        image = self.cam_setting.undistortion(image_np)
+        self.image = image
 
     def save_image(self, cnt):
         for i in range(cnt):

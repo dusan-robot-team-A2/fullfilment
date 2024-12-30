@@ -5,14 +5,17 @@ from PyQt5.QtCore import pyqtSlot, QFile, QTextStream, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 
 from .widgets.main_window import Ui_MainWindow
-import threading
+from .sm_node import SystemMonitoringNode
 
 class MainWindow(QMainWindow):
-    job_signal = pyqtSignal(int, int, int)
-    conveyor_signal = pyqtSignal(bool)
-
-    def __init__(self):
+    def __init__(self, sm_node:SystemMonitoringNode):
         super(MainWindow, self).__init__()
+
+        self.sm_node:SystemMonitoringNode = sm_node
+        self.sm_node.robot_status_signal.connect(self.set_global_image)
+        self.sm_node.robot_cam_signal.connect(self.set_robot_image)
+        self.sm_node.robot_status_signal.connect(self.set_robot_status)
+        self.sm_node.conveyor_status_signal.connect(self.set_conveyor_status)
 
         #Variable init
         self.robot_status:int = None
@@ -80,15 +83,16 @@ class MainWindow(QMainWindow):
         self.robot_cam.setPixmap(scaled_pixmap)
     
     def send_job(self,red_num, blue_num, goal_num):
-        self.job_signal.emit(red_num, blue_num, goal_num)
+        self.sm_node.send_job(red_num, blue_num, goal_num)
 
     def send_conveyor_request(self, status):
-        self.conveyor_signal.emit(status)
+        self.sm_node.send_conveyor_request(status)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    window = MainWindow()
+    sm_node = SystemMonitoringNode()
+    window = MainWindow(sm_node)
     window.show()
 
     sys.exit(app.exec())

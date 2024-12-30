@@ -18,12 +18,6 @@ class Aruco:
         rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners, 0.1, self.camera_matrix, self.dist_coeffs)
         return rvecs, tvecs
 
-    def calculate_relative_position(self, rvec1, tvec1, rvec2, tvec2):
-        tvec_rel = tvec2 - tvec1
-        tvec_rel = np.squeeze(tvec_rel)
-        dx, dy = tvec_rel[0], tvec_rel[1]
-        return dx, dy
-
     def get_matrix(self, image):
         corners, ids = self.detect_markers(image)
         rvecs, tvecs = self.estimate_pose(corners)

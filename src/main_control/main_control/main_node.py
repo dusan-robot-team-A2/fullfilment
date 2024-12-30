@@ -8,7 +8,6 @@ from fullfilment_interfaces.action import JobAction, MoveBoxes
 from std_srvs.srv import SetBool
 import cv2
 from cv_bridge import CvBridge
-<<<<<<< HEAD
 import numpy as np
 
 from util.transform import create_transformation_matrix, transformation_3d, extract_rotation_translation
@@ -17,19 +16,14 @@ from aruco.camera_util import CameraUtil
 
 from .custom_coordinate import CustomCoordinateSystem
 from .coords_manager import CoordsManager
-=======
 from fullfilment_interfaces.srv import MoveBasket
->>>>>>> update_manipulator
 
 class main_node(Node):
     def __init__(self):
         super().__init__('main_node')  # 노드 이름
-<<<<<<< HEAD
-=======
         self.robot_status_pub = self.create_publisher(Int16, 'robot_status', 10)
         self.conveyor_status_sub = self.create_subscription(Int16, 'conveyor_status', self.conveyor_status, 10)
         self.image_pub = self.create_publisher(CompressedImage, 'global_camera', 10)
->>>>>>> update_manipulator
 
         self.camera_util = CameraUtil()
         mtx, dist = self.camera_util.get_camera_mtx_dist()

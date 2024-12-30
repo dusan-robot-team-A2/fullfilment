@@ -1,0 +1,13 @@
+# fullfilment_interfaces/action/Move2D.action
+
+# Goal: 목표 위치와 방향
+geometry_msgs/Vector3 position   # 2D 위치 (x, y, z)
+geometry_msgs/Vector3 orientation  # 2D 방향 (a, b, 0) 단위 벡터
+
+---
+# Result: 동작 결과
+bool success       # 동작 성공 여부
+string message     # 결과 메시지
+
+---
+# Feedback: 진행 상태

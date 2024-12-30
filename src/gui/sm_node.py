@@ -3,25 +3,22 @@ from rclpy.node import Node
 from std_msgs.msg import String, Bool, Int16
 from std_srvs.srv import SetBool
 from sensor_msgs.msg import Image, CompressedImage
-from cv_bridge import CvBridge
+# from cv_bridge import CvBridge
 from rclpy.action import ActionClient
+from PyQt5.QtCore import pyqtSignal, QVariant
 
 
 from fullfilment_interfaces.action import JobAction
 from geometry_msgs.msg import Point
-from .app import MainWindow
+# from .app import MainWindow
 from .mail_management import send_email
 
 import time
 
 
 class SystemMonitoringNode(Node):
-    def __init__(self, main_window:MainWindow):
+    def __init__(self):
         super().__init__('data_subscriber')
-
-        self.main_window = main_window
-        self.main_window.job_signal.connect(self.send_job)
-        self.main_window.conveyor_signal.connect(self.send_conveyor_request)
 
         #init_variables
         self.last_global_image_received_time = time.time()
@@ -48,7 +45,8 @@ class SystemMonitoringNode(Node):
         # subscribe compressed image
         self.global_image_subscribe = self.create_subscription(
             CompressedImage,
-            '/image_raw/compressed',  # 토픽 이름
+            # '/image_raw/compressed',  # 토픽 이름
+            'global_camera',
             self.global_image_callback,
             10
         )
@@ -59,8 +57,15 @@ class SystemMonitoringNode(Node):
         self.check_camera_connection_timer = self.create_timer(1.0, self.check_camera_connection_timer_callback)
 
         # load to main_window initial status
-        self.update_variables()
-        self.bridge = CvBridge()
+        # self.update_variables()
+        self.bridge = None
+
+    def init_qthread_variables(self, bridge, robot_status_signal, conveyor_status_signal, global_cam_signal, robot_cam_signal):
+        self.bridge = bridge
+        self.robot_status_signal = robot_status_signal
+        self.conveyor_status_signal = conveyor_status_signal
+        self.global_cam_signal = global_cam_signal
+        self.robot_cam_signal = robot_cam_signal
         
 
     def init_variables(self):
@@ -69,8 +74,8 @@ class SystemMonitoringNode(Node):
         self.robot_image = None
 
     def update_variables(self):
-        self.main_window.set_robot_status(self.robot_status)
-        self.main_window.set_conveyor_status(self.conveyor_status)
+        self.robot_status_signal.emit(self.robot_status)
+        self.conveyor_status_signal.emit(self.conveyor_status)
 
     def robot_status_callback(self, msg:Int16):
         status = msg.data
@@ -79,7 +84,7 @@ class SystemMonitoringNode(Node):
             self.robot_status = status
             self.get_logger().info(f"Robot Status changed to {status}")
 
-            self.main_window.set_robot_status(status)
+            self.robot_status_signal.emit(self.robot_status)
     
     def conveyor_status_callback(self, msg:Bool):
         status = msg.data
@@ -88,11 +93,13 @@ class SystemMonitoringNode(Node):
             self.conveyor_status = status
             self.get_logger().info(f"Conveyor Status changed to {status}")
 
-            self.main_window.set_conveyor_status(status)
+            self.conveyor_status_signal.emit(self.conveyor_status)
 
     def global_image_callback(self, msg:CompressedImage):
+        if self.bridge is None:
+            return
         cv_image = self.bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        self.main_window.set_global_image(cv_image)
+        self.global_cam_signal.emit(cv_image)
         self.last_global_image_received_time = time.time()
         
         self.mail_send_status = False
@@ -125,7 +132,7 @@ class SystemMonitoringNode(Node):
         result:JobAction.Result = future.result().result
         self.get_logger().info(f'Result: {result.message}')
         if self.robot_image is not None:
-            self.main_window.set_robot_image(self.robot_image)
+            self.robot_cam_signal.emit(self.robot_image)
 
     def send_conveyor_request(self, data):
         # SetBool 요청 메시지 생성

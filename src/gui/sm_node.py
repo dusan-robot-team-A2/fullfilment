@@ -3,9 +3,9 @@ from rclpy.node import Node
 from std_msgs.msg import String, Bool, Int16
 from std_srvs.srv import SetBool
 from sensor_msgs.msg import Image, CompressedImage
-from cv_bridge import CvBridge
+# from cv_bridge import CvBridge
 from rclpy.action import ActionClient
-from PyQt5.QtCore import QThread, pyqtSignal, QVariant, QObject
+from PyQt5.QtCore import pyqtSignal, QVariant
 
 
 from fullfilment_interfaces.action import JobAction
@@ -17,12 +17,6 @@ import time
 
 
 class SystemMonitoringNode(Node):
-    robot_status_signal = pyqtSignal(int)
-    conveyor_status_signal = pyqtSignal(int)
-    global_cam_signal = pyqtSignal(QVariant)
-    robot_cam_signal = pyqtSignal(QVariant)
-
-
     def __init__(self):
         super().__init__('data_subscriber')
 
@@ -64,7 +58,14 @@ class SystemMonitoringNode(Node):
 
         # load to main_window initial status
         # self.update_variables()
-        self.bridge = CvBridge()
+        self.bridge = None
+
+    def init_qthread_variables(self, bridge, robot_status_signal, conveyor_status_signal, global_cam_signal, robot_cam_signal):
+        self.bridge = bridge
+        self.robot_status_signal = robot_status_signal
+        self.conveyor_status_signal = conveyor_status_signal
+        self.global_cam_signal = global_cam_signal
+        self.robot_cam_signal = robot_cam_signal
         
 
     def init_variables(self):
@@ -95,6 +96,8 @@ class SystemMonitoringNode(Node):
             self.conveyor_status_signal.emit(self.conveyor_status)
 
     def global_image_callback(self, msg:CompressedImage):
+        if self.bridge is None:
+            return
         cv_image = self.bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
         self.global_cam_signal.emit(cv_image)
         self.last_global_image_received_time = time.time()

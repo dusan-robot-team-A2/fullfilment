@@ -12,20 +12,21 @@ class CustomCoordinateSystem:
     def get_relative_coordinates(self, other_system:'CustomCoordinateSystem', coordinate):
         trans = np.dot(self.T.T, other_system.T)
 
+        homogeneous_coordinate = np.array([0,0,0,1])
+
         # Ensure coordinate is a numpy array and reshape to (3,)
         coordinate = np.array(coordinate).flatten()
 
-        # Add the homogeneous coordinate
-        homogeneous_coordinate = np.append(coordinate, 1)  # Convert [x, y, z] to [x, y, z, 1]
-
-        # Compute the relative transformation matrix
-        trans = np.dot(np.linalg.inv(self.T), other_system.T)
-
-        # Apply the transformation to the homogeneous coordinate
-        transformed_homogeneous = np.dot(trans, homogeneous_coordinate)
+        # Translation
+        translation = np.array([
+            [1, 0, 0, coordinate[0]],
+            [0, 1, 0, coordinate[1]],
+            [0, 0, 1, coordinate[2]],
+            [0, 0, 0, 1]
+        ])
 
         # Return only the x, y, z part
-        return transformed_homogeneous[:3]
+        return np.linalg.multi_dot([translation, np.linalg.inv(self.T), other_system.T, homogeneous_coordinate])[:3]
     
     def update_vec(self, tvec, rvec):
         self.tvec = tvec

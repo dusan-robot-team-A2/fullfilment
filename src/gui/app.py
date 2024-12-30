@@ -8,14 +8,15 @@ from .widgets.main_window import Ui_MainWindow
 from .sm_node import SystemMonitoringNode
 
 class MainWindow(QMainWindow):
-    def __init__(self, sm_node:SystemMonitoringNode):
+    def __init__(self, sm_node:SystemMonitoringNode, ros2_thread):
         super(MainWindow, self).__init__()
 
         self.sm_node:SystemMonitoringNode = sm_node
-        self.sm_node.robot_status_signal.connect(self.set_global_image)
-        self.sm_node.robot_cam_signal.connect(self.set_robot_image)
-        self.sm_node.robot_status_signal.connect(self.set_robot_status)
-        self.sm_node.conveyor_status_signal.connect(self.set_conveyor_status)
+        self.ros2_thread = ros2_thread
+        self.ros2_thread.global_cam_signal.connect(self.set_global_image)
+        self.ros2_thread.robot_cam_signal.connect(self.set_robot_image)
+        self.ros2_thread.robot_status_signal.connect(self.set_robot_status)
+        self.ros2_thread.conveyor_status_signal.connect(self.set_conveyor_status)
 
         #Variable init
         self.robot_status:int = None

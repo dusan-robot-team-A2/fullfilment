@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
@@ -29,6 +30,8 @@ endif()
 set (action_files
   "action/JobAction.action"
   "action/MoveBoxes.action"
+  "action/Move2D.action"
+  "action/Rotate2D.action"
 )
 
 set(srv_files
@@ -36,8 +39,8 @@ set(srv_files
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-${action_files}
-${srv_files}
+  ${action_files}
+  ${srv_files}
   DEPENDENCIES builtin_interfaces
 )
 ament_export_dependencies(rosidl_default_runtime)

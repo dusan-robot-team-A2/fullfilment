@@ -22,3 +22,4 @@ class Aruco:
         corners, ids = self.detect_markers(image)
         rvecs, tvecs = self.estimate_pose(corners)
         return ids, rvecs, tvecs
+    

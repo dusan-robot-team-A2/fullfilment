@@ -7,6 +7,7 @@ from geometry_msgs.msg import Point
 from fullfilment_interfaces.action import JobAction, MoveBoxes
 from std_srvs.srv import SetBool
 import cv2
+from cv_bridge import CvBridge
 
 class main_node(Node):
     def __init__(self):
@@ -33,12 +34,43 @@ class main_node(Node):
         self.conveyor_service = self.create_service(SetBool, '/conveyor_control', self.conveyor_callback)
         self.order_to_conveyor = self.create_client(SetBool, '/conveyor_move')
         self.conveyor_mode = 0
-        self.cap = cv2.VideoCapture(2)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        # OpenCV와 ROS 간 변환을 위한 CvBridge 초기화
+        self.bridge = CvBridge()
 
+        # 주기적인 이미지 전송을 위한 타이머 설정 (주기: 1초)
+        self.timer = self.create_timer(0.1, self.publish_image)
+
+        # OpenCV 비디오 캡처 객체 생성 (카메라 0번 장치 사용)
+        self.cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        # self.cap = cv2.VideoCapture(2)
+        # self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
         self.cap.set(cv2.CAP_PROP_FPS, 25)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        
+        print(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH), self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    def publish_image(self):
+        # 카메라에서 한 프레임 읽기
+        ret, frame = self.cap.read()
+
+        if ret:
+            # OpenCV 이미지 (BGR)을 JPEG로 압축
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]  # 90은 압축 품질
+            _, compressed_image = cv2.imencode('.jpg', frame, encode_param)
+
+            # 압축된 이미지를 CompressedImage 메시지로 변환
+            msg = CompressedImage()
+            msg.header.stamp = self.get_clock().now().to_msg()  # 타임스탬프 추가
+            msg.header.frame_id = "camera"  # 프레임 ID 설정
+            msg.format = "jpeg"  # 압축 형식 설정
+            msg.data = compressed_image.tobytes()  # 압축된 이미지 데이터
+
+            # CompressedImage 퍼블리시
+            self.image_pub.publish(msg)
+            self.get_logger().info('Publishing compressed image...')
 
     def conveyor_status(self, msg):
         self.conveyor_mode = msg
@@ -56,8 +88,9 @@ class main_node(Node):
         self.get_logger().info(f"Goal Received: red_num={goal_handle.request.red_num}, "
                                f"blue_num={goal_handle.request.blue_num}, goal_num={goal_handle.request.goal_num}")
 
-        self.send_job(goal_handle.request.red_num, goal_handle.request.blue_num, goal_handle.request.goal_num)
+        self.send_job(goal_handle.request.red_num, goal_handle.request.blue_num)
 
+        self.goal_num = goal_handle.request.goal_num
         # Complete the goal
         goal_handle.succeed()
         result = JobAction.Result()
@@ -66,10 +99,10 @@ class main_node(Node):
         self.get_logger().info(f"Goal Completed: {result.success}")
         return result
     
-    def send_job(self, red_num, blue_num, goal_num):
-        self.get_logger().info(f"Red: {red_num}, Blue: {blue_num}, Goal: {goal_num}")
+    def send_job(self, red_num, blue_num):
+        self.get_logger().info(f"Red: {red_num}, Blue: {blue_num}")
         goal_msg = MoveBoxes.Goal()
-        goal_msg.red_num, goal_msg.blue_num, self.goal_num = red_num, blue_num, goal_num
+        goal_msg.red_num, goal_msg.blue_num = red_num, blue_num
 
         # 액션을 동기적으로 호출하고 Future를 반환
         future = self.job_action_client.send_goal(goal_msg, feedbackcallback=self.feedback_callback)

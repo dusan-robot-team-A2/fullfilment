@@ -49,8 +49,6 @@ class main_node(Node):
         self.cap.set(cv2.CAP_PROP_FPS, 25)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        
-        print(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH), self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     def publish_image(self):
         # 카메라에서 한 프레임 읽기

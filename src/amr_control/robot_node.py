@@ -6,7 +6,6 @@ from std_msgs.msg import Float32MultiArray
 import numpy as np
 from pid import PID  # PID 모듈을 임포트합니다.
 from robot import Robot
-from fullfilment_interfaces.srv import MoveBasket
 
 class TurtleBotController(Node):
     def __init__(self):
@@ -14,7 +13,6 @@ class TurtleBotController(Node):
         # create ROS communication
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10) # 로봇 이동명령 pub
         self.subscription = self.create_subscription(Float32MultiArray, 'relative_position', self.position_callback, 10) # 로봇 현재위치 업데이트
-        self.basket_client = self.create_client(MoveBasket, 'move_basket')
 
         # # PID controllers for linear and angular velocity
         # self.linear_pid = PID(1.0, 0.1, 0.05)

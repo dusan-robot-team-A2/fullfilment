@@ -1,4 +1,4 @@
-# my_action_interfaces/action/Move2D.action
+# my_action_interfaces/action/Rotate2D.action
 
 # Goal: 방향
 geometry_msgs/Vector3 orientation  # 2D 방향 (a, b, 0) 단위 벡터

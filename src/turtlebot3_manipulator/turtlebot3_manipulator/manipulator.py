@@ -11,9 +11,11 @@ from fullfilment_interfaces.srv import MoveBasket
 from visual_kinematics.RobotSerial import *
 from std_msgs.msg import Header
 import time
+import math
 import cv2
 from .imagesaver import ImageSaver
 from .camera_undistortion import camera_undistortion
+from std_srvs.srv import SetBool
 from random import randint
 
 class manipulator(Node):
@@ -24,10 +26,11 @@ class manipulator(Node):
         self.get_image = self.create_subscription(CompressedImage, 'rgb_image/compressed_image', self.image_callback, 10)
         self.job_server = ActionServer(self, MoveBoxes, 'job_command2amr', self.moveboxes_callback)
         self. basket_service = self.create_service(MoveBasket, 'move_basket', self.basket_callback)
+        # self.gripper_client = self.create_client(SetBool, '/gripper_control')
 
         self.image_saver = ImageSaver()
         self.cam_setting = camera_undistortion()
-        self.label_dic = {0: "red", 1: "blue", 2: "purple"}
+        self.label_dic = {0: "blue", 1: "purple", 2: "red"}
         self.move_manipulator(100, 0, 0)
 
     def basket_callback(self, request, response):
@@ -43,9 +46,9 @@ class manipulator(Node):
     def image_callback(self, img):
         np_arr = np.frombuffer(img.data, np.uint8)
         image_np = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode to color image
-        
-        image = self.cam_setting.undistortion(image_np)
-        self.image = image
+        self.image = image_np
+        cv2.imshow('', self.image)
+        cv2.waitKey(1)
 
     def save_image(self, cnt):
         for i in range(cnt):
@@ -53,71 +56,79 @@ class manipulator(Node):
             num = self.image_saver.save_imgae(self.image, i + num)
 
     def detect_object(self, img):
-        model = YOLO("Yolov8.pt")
-        result = model.track(img, persist=True)[0]
+        image = self.cam_setting.undistortion(img)
+        model = YOLO("/home/pgt/doosan/fullfilment/src/turtlebot3_manipulator/turtlebot3_manipulator/best.pt")
+        result = model.track(image, persist=True)[0]
         data = result.boxes
+        print(data)
+        cv2.imshow('', image)
         return data
 
     def get_object_pos(self):
         data = self.detect_object(self.image)
         x_center = 640
-        y_center = 360
+        y_center = 90
         red_lst = []
         blue_lst = []
         # Get the boxes and track IDs
-        class_ids = self.data.cls
+        class_ids = data.cls
         boxes = data.xywh.cpu()
         track_ids = data.id.int().cpu().tolist()
         confidences = data.conf.cpu().tolist()
         # Plot the tracks
-        for box, class_id, confidence in zip(boxes, class_ids, confidences):
+        for box, class_id, track_id, confidence in zip(boxes, class_ids, track_ids, confidences):
             if confidence < 0.5:
                 continue
             x, y, w, h = box
-            if self.label_dic[class_id] == 'red':
-                red_lst.append([self.label_dic[class_id], float((((y + h) / 2) - y_center) * 0.18), float((((x + w) / 2) - x_center) * 0.18)])
-            elif self.label_dic[class_id] == 'blue':
-                blue_lst.append([self.label_dic[class_id], float((((y + h) / 2) - y_center) * 0.18), float((((x + w) / 2) - x_center) * 0.18)])
+            if self.label_dic[int(class_id)] == 'red':
+                red_lst.append([self.label_dic[int(class_id)], float((y_center - (y + (h / 2))) * 0.01), float((x_center - (x + (w / 2))) * 0.12)])
+            elif self.label_dic[int(class_id)] == 'blue':
+                blue_lst.append([self.label_dic[int(class_id)], float((y_center - (y + (h / 2))) * 0.01), float((x_center - (x + (w / 2))) * 0.12)])
             else:
-                return [self.label_dic[class_id], float((((y + h) / 2) - y_center) * 0.18), float((((x + w) / 2) - x_center) * 0.18)]
+                return [self.label_dic[class_id], float((y_center - (y + (h / 2))) * 0.01), float((x_center - (x + (w / 2))) * 0.12)]
         return red_lst, blue_lst
     
     def check_object(self):
         self.move_manipulator(100, 0, 120)
-        time.sleep(1)
         return self.get_object_pos()
     
     def safty_pick(self, x, y, z):
-        self.move_manipulator(x, y, z + 10)
+        self.move_manipulator(x, y, z + 20)
         self.move_manipulator(x, y, z)
         self.grip()
 
     def pick(self, x, y, z):
-        self.move_manipulator(x, y, z + 10)
+        print(x, y, z)
+        self.move_manipulator(x, y, z + 20)
         self.move_manipulator(x, y, z)
         self.grip()
         self.move_manipulator(x, y, z + 30)
 
     def place(self, x, y, z):
-        self.move_manipulator(x, y, z + 10)
+        self.move_manipulator(x, y, z + 20)
         self.move_manipulator(x, y, z)
         self.release()
         self.move_manipulator(x, y, z + 30)
 
     def moveboxes_callback(self, goal):
+        self.release()
         feedback_msg = MoveBoxes.Feedback()
         red_lst, blue_lst = self.check_object()
+        print(red_lst, blue_lst, end='\n')
         red = goal.request.red_num
         blue = goal.request.blue_num
         for i in range(red):
-            self.pick(100 + red_lst[i][0], 0 + red_lst[i][1], -5)
-            self.place(0, 150, 0)
+            self.pick(100 + red_lst[i][1], 5 + red_lst[i][2], -25)
+            print(red_lst[i][1], red_lst[i][2])
+            self.place(0, -200, 5)
+            self.move_manipulator(100, 0, 0)
             feedback_msg.go = True
             goal.publish_feedback(feedback_msg)
         
         for i in range(blue):
-            self.pick(100 + blue_lst[i][0], 0 + blue_lst[i][1], -5)
-            self.place(0, 150, 0)
+            self.pick(103 + blue_lst[i][1], 0 + blue_lst[i][2], -25)
+            self.place(0, -200, 5)
+            self.move_manipulator(100, 0, 0)
             feedback_msg.go = True
             goal.publish_feedback(feedback_msg)
         result = MoveBoxes.Result()
@@ -126,10 +137,10 @@ class manipulator(Node):
     
     def pick_up_basket(self):
         pos_lst = self.check_object()
-        self.safty_pick(pos_lst[1], pos_lst[2], -10)
-        self.move_manipulator(pos_lst[1], pos_lst[2] + 30, -10)
-        self.move_manipulator(pos_lst[1], pos_lst[2] + 30, -10)
-        self.move_manipulator(pos_lst[1], pos_lst[2] + 30, 10)
+        self.safty_pick(pos_lst[1], pos_lst[2], -20)
+        self.move_manipulator(pos_lst[1], pos_lst[2] - 30, -20)
+        self.move_manipulator(pos_lst[1], pos_lst[2] - 30, -20)
+        self.move_manipulator(pos_lst[1], pos_lst[2] - 30, 10)
 
     def place_basket(self):
         self.place(100, 0, -5)
@@ -138,8 +149,8 @@ class manipulator(Node):
         d1 = (r3**2 - r2**2 + r1**2) / (2*r3)
         d2 = (r3**2 + r2**2 - r1**2) / (2*r3)
 
-        s1 = np.arccos(d1 / r1)
-        s2 = np.arccos(d2 / r2)
+        s1 = math.acos(d1 / r1)
+        s2 = math.acos(d2 / r2)
 
         return s1, s2
     
@@ -152,41 +163,49 @@ class manipulator(Node):
 
         z = z + r3 - j1_z_offset
 
-        Rt = np.sqrt(x**2 + y**2 + z**2)
-        Rxy = np.sqrt(x**2 + y**2)
-        St = np.arcsin(z / Rt)
+        Rt = math.sqrt(x**2 + y**2 + z**2)
+        Rxy = math.sqrt(x**2 + y**2)
+        St = math.asin(z / Rt)
         #   Sxy = np.arccos(x / Rxy)
-        Sxy = np.arctan2(y, x)
+        Sxy = math.atan2(y, x)
 
         s1, s2 = self.solv2(r1, r2, Rt)
 
-        sr1 = np.pi/2 - (s1 + St)
+        sr1 = math.pi/2 - (s1 + St)
         sr2 = s1 + s2
         sr2_ = sr1 + sr2
-        sr3 = np.pi - sr2_
+        sr3 = math.pi - sr2_
 
         return Sxy, sr1, sr2, sr3, St, Rt
 
     def grip(self):
-        self.move_gripper(-0.015)
+        self.send_gripper_goal(-0.015)
+        time.sleep(1)
+        # request = SetBool.Request()
+        # request.data = True
+        # future = self.gripper_client.call(request)
 
     def release(self):
-        self.move_gripper(0.025)
+        self.send_gripper_goal(0.005)
+        time.sleep(1)
+        # request = SetBool.Request()
+        # request.data = False
+        # future = self.gripper_client.call(request)
 
-    def move_gripper(self, position):
+    def send_gripper_goal(self, position):
         goal = GripperCommand.Goal()
         goal.command.position = position
         goal.command.max_effort = -1.0
-
+    
         if not self.gripper_action_client.wait_for_server(timeout_sec=1.0):
             self.get_logger().error("Gripper action server not available!")
             return
-
+        
         self.gripper_action_client.send_goal_async(goal)
 
     def move_manipulator(self, x, y, z):
-        th1_offset = - np.arctan2(0.024, 0.128)
-        th2_offset = - 0.5*np.pi - th1_offset
+        th1_offset = - math.atan2(0.024, 0.128)
+        th2_offset = - 0.5*math.pi - th1_offset
 
         Sxy, sr1, sr2, sr3, St, Rt = self.solv_robot_arm2(x, y, z)
         trajectory_msg = JointTrajectory()
@@ -204,6 +223,7 @@ class manipulator(Node):
         trajectory_msg.points = [point]
 
         self.joint_pub.publish(trajectory_msg)
+        time.sleep(2)
 
 def main(args = None):
     rclpy.init(args=args)

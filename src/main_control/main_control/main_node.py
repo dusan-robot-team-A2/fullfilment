@@ -8,6 +8,7 @@ from fullfilment_interfaces.action import JobAction, MoveBoxes
 from std_srvs.srv import SetBool
 import cv2
 from cv_bridge import CvBridge
+<<<<<<< HEAD
 import numpy as np
 
 from util.transform import create_transformation_matrix, transformation_3d, extract_rotation_translation
@@ -16,10 +17,19 @@ from aruco.camera_util import CameraUtil
 
 from .custom_coordinate import CustomCoordinateSystem
 from .coords_manager import CoordsManager
+=======
+from fullfilment_interfaces.srv import MoveBasket
+>>>>>>> update_manipulator
 
 class main_node(Node):
     def __init__(self):
         super().__init__('main_node')  # 노드 이름
+<<<<<<< HEAD
+=======
+        self.robot_status_pub = self.create_publisher(Int16, 'robot_status', 10)
+        self.conveyor_status_sub = self.create_subscription(Int16, 'conveyor_status', self.conveyor_status, 10)
+        self.image_pub = self.create_publisher(CompressedImage, 'global_camera', 10)
+>>>>>>> update_manipulator
 
         self.camera_util = CameraUtil()
         mtx, dist = self.camera_util.get_camera_mtx_dist()
@@ -53,6 +63,8 @@ class main_node(Node):
             MoveBoxes,
             'job_command2amr'
         )
+
+        self.basket_client = self.create_client(MoveBasket, 'move_basket')
 
         self.conveyor_service = self.create_service(SetBool, '/conveyor_control', self.conveyor_callback)
         self.order_to_conveyor = self.create_client(SetBool, '/conveyor_move')
@@ -176,9 +188,14 @@ class main_node(Node):
         self.get_logger().info(f"Goal Received: red_num={goal_handle.request.red_num}, "
                                f"blue_num={goal_handle.request.blue_num}, goal_num={goal_handle.request.goal_num}")
 
+        # move robot to boxes
         self.send_job(goal_handle.request.red_num, goal_handle.request.blue_num)
 
-        self.goal_num = goal_handle.request.goal_num
+        # move robot to basket
+        self.pick_up_basket()
+        # move robot to goal
+        self.place_basket()
+
         # Complete the goal
         goal_handle.succeed()
         result = JobAction.Result()
@@ -187,18 +204,30 @@ class main_node(Node):
         self.get_logger().info(f"Goal Completed: {result.success}")
         return result
     
+    def pick_up_basket(self):
+        request = MoveBasket.Request()
+        request.message = 'pick'
+        future = self.basket_client.call(request)
+        response = future.result()
+    
+    def place_basket(self):
+        request = MoveBasket.Request()
+        request.message = 'place'
+        future = self.basket_client.call(request)
+        response = future.result()
+    
     def send_job(self, red_num, blue_num):
         self.get_logger().info(f"Red: {red_num}, Blue: {blue_num}")
         goal_msg = MoveBoxes.Goal()
         goal_msg.red_num, goal_msg.blue_num = red_num, blue_num
 
         # 액션을 동기적으로 호출하고 Future를 반환
-        future = self.job_action_client.send_goal(goal_msg, feedbackcallback=self.feedback_callback)
+        future = self.job_action_client.send_goal_async(goal_msg, feedbackcallback=self.feedback_callback)
         future.add_done_callback(self.goal_response_callback)
         return future
     
     def feedback_callback(self, feedback_msg):
-        self.move_conveyor()
+        self.move_conveyor(True)
 
     def goal_response_callback(self, future):
         goal_handle = future.result()

@@ -7,6 +7,10 @@ class Calculator:
         self.pick_status = False
 
     def calculate_angle(self, a, b, c, d):
+        print(a)
+        print(b)
+        print(c)
+        print(d)
         dot_product = a * c + b * d
         magnitude_a = math.sqrt(a**2 + b**2)
         magnitude_b = math.sqrt(c**2 + d**2)
@@ -21,7 +25,7 @@ class Calculator:
     
     def calculate_distance(self, data):
         data = data.position
-        distance = np.sqrt((data.x*0.01)**2 + (data.y*0.01)**2)
+        distance = np.sqrt(data.x**2 + data.y**2)
         print("거리를 구했습니다.")
         return distance
 

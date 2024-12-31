@@ -9,9 +9,11 @@ class CustomCoordinateSystem:
         self.R, _ = cv2.Rodrigues(rvec)
         self.T = create_transformation_matrix(self.R, self.tvec)
     
+    def get_y_direction(self, other_system):
+        homogeneous_coordinate = np.array([0,0.2,0,1])
+        return np.linalg.multi_dot([np.linalg.inv(self.T), other_system.T, homogeneous_coordinate])[:3]
+    
     def get_relative_coordinates(self, other_system:'CustomCoordinateSystem', coordinate):
-        trans = np.dot(self.T.T, other_system.T)
-
         homogeneous_coordinate = np.array([0,0,0,1])
 
         # Ensure coordinate is a numpy array and reshape to (3,)

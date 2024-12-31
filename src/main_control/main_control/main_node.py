@@ -4,8 +4,9 @@ from rclpy.action import ActionServer, ActionClient
 from std_msgs.msg import Int16
 from sensor_msgs.msg import CompressedImage
 from geometry_msgs.msg import Point
-from fullfilment_interfaces.action import JobAction, MoveBoxes
+from fullfilment_interfaces.action import JobAction, MoveBoxes, Move2D, Rotate2D
 from std_srvs.srv import SetBool
+from geometry_msgs.msg import Vector3
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
@@ -25,6 +26,8 @@ class main_node(Node):
         self.robot_status_pub = self.create_publisher(Int16, 'robot_status', 10)
         self.conveyor_status_sub = self.create_subscription(Int16, 'conveyor_status', self.conveyor_status, 10)
         self.image_pub = self.create_publisher(CompressedImage, 'global_camera', 10)
+        self.move2d_client = ActionClient(self, Move2D, 'nav2_goal')
+        self.pose2d_client = ActionClient(self, Rotate2D, 'feedback_position')
 
         self.camera_util = CameraUtil()
         mtx, dist = self.camera_util.get_camera_mtx_dist()
@@ -34,7 +37,7 @@ class main_node(Node):
         self.robot_status_pub = self.create_publisher(Int16, 'robot_status', 10)
         self.conveyor_status_sub = self.create_subscription(Int16, 'conveyor_status', self.conveyor_status, 10)
         self.image_pub = self.create_publisher(CompressedImage, 'global_camera', 10)
-        self.image_sub = self.create_subscription(CompressedImage, 'image_raw/compressed', self.subscribe_image, 10)
+        self.image_sub = self.create_subscription(CompressedImage, '/image_raw/compressed_image', self.subscribe_image, 10)
 
         self.aruco_id_matcher = {
             3: "global",
@@ -50,7 +53,8 @@ class main_node(Node):
             self,
             JobAction,
             'job_command',
-            self.execute_callback
+            self.execute_callback_test
+            # self.execute_callback
         )
 
         self.job_action_client = ActionClient(
@@ -72,6 +76,7 @@ class main_node(Node):
         # self.timer = self.create_timer(0.1, self.publish_image)
 
     def subscribe_image(self, msg:CompressedImage):
+        print("hi")
         if self.bridge is None:
             return
         cv_image = self.bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -180,17 +185,55 @@ class main_node(Node):
         response.success = True
         return response 
 
+    async def execute_callback_test(self, goal_handle):
+        self.get_logger().info(f"Goal Received: red_num={goal_handle.request.red_num}, "
+                               f"blue_num={goal_handle.request.blue_num}, goal_num={goal_handle.request.goal_num}")
+        
+        self.get_logger().info("Move Robot to Base")
+        self.get_logger().info("Rotate Robot to specific pose")
+        self.get_logger().info("Grip and place boxes")
+        await self.send_job(goal_handle.request.red_num, goal_handle.request.blue_num)
+        self.get_logger().info("Move Robot to bascket")
+        self.get_logger().info("grip basket")
+        self.get_logger().info("move to goal")
+        self.get_logger().info("place basket")
+        goal_num = goal_handle.request.goal_num
+
+        # Complete the goal
+        goal_handle.succeed()
+        result = JobAction.Result()
+        result.message = f"Calculation complete: Result ="
+        result.success = True
+        self.get_logger().info(f"Goal Completed: {result.success}")
+        return result
+
     async def execute_callback(self, goal_handle):
         self.get_logger().info(f"Goal Received: red_num={goal_handle.request.red_num}, "
                                f"blue_num={goal_handle.request.blue_num}, goal_num={goal_handle.request.goal_num}")
 
+        result = await self.move_to_goal("base")
+        if result:
+            await self.rotate_to_goal("base")
+        
         # move robot to boxes
-        self.send_job(goal_handle.request.red_num, goal_handle.request.blue_num)
+        # self.send_job(goal_handle.request.red_num, goal_handle.request.blue_num)
 
         # move robot to basket
-        self.pick_up_basket()
+        await self.pick_up_basket()
+
+        goal_num = goal_handle.request.goal_num
+        if goal_num == 0:
+            goal = "goal1"
+        elif goal_num ==1:
+            goal = "goal2"
+        elif goal_num ==2:
+            goal = "goal3"
+        else:
+            goal = "goal1"
+        await self.move_to_goal(goal)
+
         # move robot to goal
-        self.place_basket()
+        await self.place_basket()
 
         # Complete the goal
         goal_handle.succeed()
@@ -212,6 +255,84 @@ class main_node(Node):
         future = self.basket_client.call(request)
         response = future.result()
     
+    async def move_to_goal(self,goal):
+
+        if goal == "base":
+            pos, ori = self.coords_manager.get_robot_base_relatve()
+            
+        elif goal == "goal1":
+            pos, ori = self.coords_manager.get_robot_goal_relatve(0)
+            
+        elif goal == "goal2":
+            pos, ori = self.coords_manager.get_robot_goal_relatve(1)
+            
+        elif goal == "goal3":
+            pos, ori = self.coords_manager.get_robot_goal_relatve(2)
+        
+        else:
+            return None
+        
+        goal_msg = Move2D.Goal()
+        goal_msg.position = Vector3(x=pos[0],y=pos[1], z=pos[2])
+        goal_msg.orientation = Vector3(x=ori[0],y=ori[1],z=ori[2])
+        
+        # 목표를 서버에 비동기로 보내고 응답을 대기
+        send_goal_future = self.move2d_client.send_goal_async(goal_msg)
+        goal_handle = await send_goal_future
+
+        if not goal_handle.accepted:
+            self.get_logger().info('Goal rejected')
+            return
+
+        self.get_logger().info('Goal accepted')
+        
+        # 결과를 비동기로 요청하고 대기
+        get_result_future = goal_handle.get_result_async()
+        result:Move2D.Result = await get_result_future
+        
+        self.get_logger().info(f'Result: {result.message}')
+        
+        return True
+    
+    async def rotate_to_goal(self,goal):
+
+        if goal == "base":
+            pos, ori = self.coords_manager.get_robot_base_direct()
+            
+        elif goal == "goal1":
+            pos, ori = self.coords_manager.get_robot_goal_direct(0)
+            
+        elif goal == "goal2":
+            pos, ori = self.coords_manager.get_robot_goal_direct(1)
+            
+        elif goal == "goal3":
+            pos, ori = self.coords_manager.get_robot_goal_direct(2)
+        
+        else:
+            return None
+        
+        # goal_msg = Rotate2D.Goal()
+        # goal_msg.position = Vector3(x=pos[0],y=pos[1], z=pos[2])
+        # goal_msg.orientation = Vector3(x=ori[0],y=ori[1],z=ori[2])
+        
+        # # 목표를 서버에 비동기로 보내고 응답을 대기
+        # send_goal_future = self.move2d_client.send_goal_async(goal_msg)
+        # goal_handle = await send_goal_future
+
+        # if not goal_handle.accepted:
+        #     self.get_logger().info('Goal rejected')
+        #     return
+
+        # self.get_logger().info('Goal accepted')
+        
+        # # 결과를 비동기로 요청하고 대기
+        # get_result_future = goal_handle.get_result_async()
+        # result:Move2D.Result = await get_result_future
+        
+        # self.get_logger().info(f'Result: {result.message}')
+        
+        return True
+    
     def send_job(self, red_num, blue_num):
         self.image_update()
         time.sleep(3)
@@ -220,7 +341,7 @@ class main_node(Node):
         goal_msg.red_num, goal_msg.blue_num = red_num, blue_num
 
         # 액션을 동기적으로 호출하고 Future를 반환
-        future = self.job_action_client.send_goal_async(goal_msg, feedbackcallback=self.feedback_callback)
+        future = self.job_action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
         future.add_done_callback(self.goal_response_callback)
         return future
     

@@ -1,22 +1,26 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
-package_name = 'fullfilment'
+package_name = 'amr_control'
 
 setup(
     name=package_name,
-    version='0.0.1',
-    packages=[package_name],
-    py_modules=[package_name + '.amr_control.robot_node'],  # 실행 파일
+    version='0.0.0',
+    packages=find_packages(exclude=['test']),
+    data_files=[
+        ('share/ament_index/resource_index/packages',
+            ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+    ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='Your Name',
-    maintainer_email='your_email@example.com',
-    description='AMR control with robot node',
-    license='Apache-2.0',
+    maintainer='pgt',
+    maintainer_email='rbxorns1@naver.com',
+    description='TODO: Package description',
+    license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'robot_node = fullfilment.amr_control.robot_node:main',  # 엔트리 포인트
+        'robot_node = fullfilment.amr_control.robot_node:main'
         ],
     },
 )

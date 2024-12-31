@@ -9,6 +9,7 @@ from std_srvs.srv import SetBool
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
+import time
 
 from util.transform import create_transformation_matrix, transformation_3d, extract_rotation_translation
 from aruco.aruco import Aruco
@@ -62,6 +63,7 @@ class main_node(Node):
 
         self.conveyor_service = self.create_service(SetBool, '/conveyor_control', self.conveyor_callback)
         self.order_to_conveyor = self.create_client(SetBool, '/conveyor_move')
+        self.update_image = self.create_client(SetBool, '/update_image')
         self.conveyor_mode = 0
         # OpenCV와 ROS 간 변환을 위한 CvBridge 초기화
         self.bridge = CvBridge()
@@ -211,6 +213,8 @@ class main_node(Node):
         response = future.result()
     
     def send_job(self, red_num, blue_num):
+        self.image_update()
+        time.sleep(3)
         self.get_logger().info(f"Red: {red_num}, Blue: {blue_num}")
         goal_msg = MoveBoxes.Goal()
         goal_msg.red_num, goal_msg.blue_num = red_num, blue_num
@@ -219,6 +223,12 @@ class main_node(Node):
         future = self.job_action_client.send_goal_async(goal_msg, feedbackcallback=self.feedback_callback)
         future.add_done_callback(self.goal_response_callback)
         return future
+    
+    def image_update(self):
+        request = SetBool.Request()
+        request.data = True
+        future = self.update_image.call(request)
+        
     
     def feedback_callback(self, feedback_msg):
         self.move_conveyor(True)

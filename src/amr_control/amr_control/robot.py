@@ -50,7 +50,7 @@ class Robot():
             self.cmd_vel_pub.publish(cmd_vel)
             print("각속도를 발행합니다.")
             print(duration-(self.node.get_clock().now() - start_time).nanoseconds)
-            time.sleep(0.1)
+            # time.sleep(0.1)
         self.stop()
         self.update_move_status()
         self.update_now_rotation_matrix(data)
@@ -73,7 +73,7 @@ class Robot():
             self.cmd_vel_pub.publish(cmd_vel)
             print("선속도를 발행합니다.")
             print(duration-(self.node.get_clock().now() - start_time).nanoseconds)
-            time.sleep(0.1)
+            # time.sleep(0.1)
         self.stop()
         self.update_move_status()
 

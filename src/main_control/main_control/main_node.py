@@ -28,6 +28,8 @@ class main_node(Node):
         self.image_pub = self.create_publisher(CompressedImage, 'global_camera', 10)
         self.move2d_client = ActionClient(self, Move2D, 'nav2_goal')
         self.pose2d_client = ActionClient(self, Rotate2D, 'feedback_position')
+        if not self.move2d_client.wait_for_server(timeout_sec=5.0):  # 5초 동안 대기
+            self.get_logger().error('Action Server is not available within timeout.')
 
         self.camera_util = CameraUtil()
         mtx, dist = self.camera_util.get_camera_mtx_dist()
@@ -190,7 +192,8 @@ class main_node(Node):
                                f"blue_num={goal_handle.request.blue_num}, goal_num={goal_handle.request.goal_num}")
         
         self.get_logger().info("Move Robot to Base")
-        result = await self.move_to_goal("base")
+        future = self.move_to_goal("base")
+        await future
 
         self.get_logger().info("Rotate Robot to specific pose")
         if result:

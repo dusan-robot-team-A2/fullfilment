@@ -170,5 +170,4 @@ class CoordsManager:
         ori[2] = 0
 
         return goal_ori,ori
-
         

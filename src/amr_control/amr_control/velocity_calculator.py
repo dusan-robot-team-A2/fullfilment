@@ -16,7 +16,7 @@ class Calculator:
         magnitude_b = math.sqrt(c**2 + d**2)
         try:
             cos_theta = dot_product / (magnitude_a * magnitude_b)
-            angle_radians = math.acos(cos_theta)
+            angle_radians = math.acos(cos_theta) - math.pi * 0.5
             print("상대각도를 구했습니다.")
             return angle_radians
         except ZeroDivisionError as e:

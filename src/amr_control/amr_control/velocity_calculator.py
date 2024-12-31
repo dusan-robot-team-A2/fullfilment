@@ -21,7 +21,7 @@ class Calculator:
     
     def calculate_distance(self, data):
         data = data.position
-        distance = np.sqrt(data.x**2 + data.y**2)
+        distance = np.sqrt((data.x*0.01)**2 + (data.y*0.01)**2)
         print("거리를 구했습니다.")
         return distance
 
@@ -31,18 +31,6 @@ class Calculator:
     def get_target_move(self, data):
         return self.calculate_distance(data)
     
-    # def get_final_rotate(self, data):
-    #     x, y, angular = data
-    #     if not self.pick_status:
-    #         angle_with_negative_x = math.atan2(y, -x)
-    #         print(angle_with_negative_x)
-    #         return angle_with_negative_x
-    #     else:
-    #         angle_with_negative_y = math.atan2(x, -y)
-    #         self.pick_status = False
-    #         print(angle_with_negative_y)
-    #         return angle_with_negative_y
-    
     def get_cmd_vel_rotation(self):
         cmd_vel = Twist()
         cmd_vel.linear.x = 0.0
@@ -51,6 +39,12 @@ class Calculator:
     
     def get_cmd_vel_move(self):
         cmd_vel = Twist()
-        cmd_vel.linear.x = 0.5 # meter per second
+        cmd_vel.linear.x = 0.1 # meter per second
+        cmd_vel.angular.z = 0.0
+        return cmd_vel
+
+    def get_cmd_vel_back(self):
+        cmd_vel = Twist()
+        cmd_vel.linear.x = -0.1 # meter per second
         cmd_vel.angular.z = 0.0
         return cmd_vel

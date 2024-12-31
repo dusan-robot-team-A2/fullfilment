@@ -1,7 +1,7 @@
 from geometry_msgs.msg import Twist
-import rclpy
 from velocity_calculator import Calculator
 from geometry_msgs.msg import Vector3
+import time
 
 
 class Robot():
@@ -43,12 +43,14 @@ class Robot():
             self.get_logger().error(f"ZeroDivisionError: {str(e)}")
 
     def rotation_pub(self, radians, cmd_vel, data):
-        duration = (abs(radians) / cmd_vel.angular.z) * 1e9
+        print("rotation을 시작해겠습니다.")
+        duration = (abs(radians) / abs(cmd_vel.angular.z)) * 1e9
         start_time = self.node.get_clock().now()
         while (self.node.get_clock().now() - start_time).nanoseconds < duration:
             self.cmd_vel_pub.publish(cmd_vel)
             print("각속도를 발행합니다.")
-            rclpy.spin_once(self.node, timeout_sec=0.1)  # 0.1초 대기 (ROS2의 이벤트 큐를 처리)
+            print(duration-(self.node.get_clock().now() - start_time).nanoseconds)
+            time.sleep(0.1)
         self.stop()
         self.update_move_status()
         self.update_now_rotation_matrix(data)
@@ -63,12 +65,24 @@ class Robot():
             self.get_logger().error(f"ZeroDivisionError: {str(e)}")
 
     def move_pub(self, distance, cmd_vel):
-        duration = (distance / cmd_vel.linear.x) * 1e9
+        duration = (distance / abs(cmd_vel.linear.x)) * 1e9
         start_time = self.node.get_clock().now()
+        print(duration)
 
         while (self.node.get_clock().now() - start_time).nanoseconds < duration:
             self.cmd_vel_pub.publish(cmd_vel)
             print("선속도를 발행합니다.")
-            rclpy.spin_once(self.node, timeout_sec=0.1)  # 0.1초 대기 (ROS2의 이벤트 큐를 처리)
+            print(duration-(self.node.get_clock().now() - start_time).nanoseconds)
+            time.sleep(0.1)
         self.stop()
         self.update_move_status()
+
+    def back(self):
+        distance = 0.85
+        cmd_vel = self.calculator.get_cmd_vel_back()
+        try:
+            if cmd_vel.linear.x == 0:
+                raise ZeroDivisionError("Linear velocity cannot be zero.")
+            self.move_pub(distance, cmd_vel)
+        except ZeroDivisionError as e:
+            self.get_logger().error(f"ZeroDivisionError: {str(e)}")

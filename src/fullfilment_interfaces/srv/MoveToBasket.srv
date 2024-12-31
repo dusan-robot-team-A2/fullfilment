@@ -1,0 +1,5 @@
+# fullfilment/src/fullfilment_interfaces/srv/MoveToBasket.srv
+int32 call
+---
+bool success       # 동작 성공 여부
+string message     # 결과 메시지

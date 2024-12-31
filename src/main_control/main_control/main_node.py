@@ -190,7 +190,11 @@ class main_node(Node):
                                f"blue_num={goal_handle.request.blue_num}, goal_num={goal_handle.request.goal_num}")
         
         self.get_logger().info("Move Robot to Base")
+        result = await self.move_to_goal("base")
+
         self.get_logger().info("Rotate Robot to specific pose")
+        if result:
+            await self.rotate_to_goal("base")
         self.get_logger().info("Grip and place boxes")
         await self.send_job(goal_handle.request.red_num, goal_handle.request.blue_num)
         self.get_logger().info("Move Robot to bascket")
@@ -198,6 +202,7 @@ class main_node(Node):
         self.get_logger().info("move to goal")
         self.get_logger().info("place basket")
         goal_num = goal_handle.request.goal_num
+
 
         # Complete the goal
         goal_handle.succeed()
@@ -297,39 +302,38 @@ class main_node(Node):
     async def rotate_to_goal(self,goal):
 
         if goal == "base":
-            pos, ori = self.coords_manager.get_robot_base_direct()
+            ori, _ = self.coords_manager.get_robot_base_direct()
             
         elif goal == "goal1":
-            pos, ori = self.coords_manager.get_robot_goal_direct(0)
+            ori, _  = self.coords_manager.get_robot_goal_direct(0)
             
         elif goal == "goal2":
-            pos, ori = self.coords_manager.get_robot_goal_direct(1)
+            ori, _  = self.coords_manager.get_robot_goal_direct(1)
             
         elif goal == "goal3":
-            pos, ori = self.coords_manager.get_robot_goal_direct(2)
+            ori, _  = self.coords_manager.get_robot_goal_direct(2)
         
         else:
             return None
         
-        # goal_msg = Rotate2D.Goal()
-        # goal_msg.position = Vector3(x=pos[0],y=pos[1], z=pos[2])
-        # goal_msg.orientation = Vector3(x=ori[0],y=ori[1],z=ori[2])
+        goal_msg = Rotate2D.Goal()
+        goal_msg.orientation = Vector3(x=ori[0],y=ori[1],z=ori[2])
         
-        # # 목표를 서버에 비동기로 보내고 응답을 대기
-        # send_goal_future = self.move2d_client.send_goal_async(goal_msg)
-        # goal_handle = await send_goal_future
+        # 목표를 서버에 비동기로 보내고 응답을 대기
+        send_goal_future = self.move2d_client.send_goal_async(goal_msg)
+        goal_handle = await send_goal_future
 
-        # if not goal_handle.accepted:
-        #     self.get_logger().info('Goal rejected')
-        #     return
+        if not goal_handle.accepted:
+            self.get_logger().info('Goal rejected')
+            return
 
-        # self.get_logger().info('Goal accepted')
+        self.get_logger().info('Goal accepted')
         
-        # # 결과를 비동기로 요청하고 대기
-        # get_result_future = goal_handle.get_result_async()
-        # result:Move2D.Result = await get_result_future
+        # 결과를 비동기로 요청하고 대기
+        get_result_future = goal_handle.get_result_async()
+        result:Move2D.Result = await get_result_future
         
-        # self.get_logger().info(f'Result: {result.message}')
+        self.get_logger().info(f'Result: {result.message}')
         
         return True
     

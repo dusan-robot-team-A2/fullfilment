@@ -36,6 +36,7 @@ set (action_files
 
 set(srv_files
   "srv/MoveBasket.srv"
+  "srv/MoveToBasket.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
